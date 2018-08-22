@@ -1,286 +1,81 @@
 package types
 
 import (
-	"encoding/hex"
-	"encoding/json"
-	"errors"
-	"fmt"
-
-	"github.com/tendermint/tendermint/crypto"
-	"github.com/tendermint/tendermint/crypto/encoding/amino"
-
-	"github.com/tendermint/tendermint/libs/bech32"
+	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/cosmos/cosmos-sdk/wire"
+	"github.com/cosmos/cosmos-sdk/x/auth"
 )
 
-// Bech32 prefixes
-const (
-	// expected address length
-	AddrLen = 20
+var _ auth.Account = (*AppAccount)(nil)
 
-	// Bech32 prefixes
-	Bech32PrefixAccAddr = "cosmosaccaddr"
-	Bech32PrefixAccPub  = "cosmosaccpub"
-	Bech32PrefixValAddr = "cosmosvaladdr"
-	Bech32PrefixValPub  = "cosmosvalpub"
-)
+// AppAccount is a custom extension for this application. It is an example of
+// extending auth.BaseAccount with custom fields. It is compatible with the
+// stock auth.AccountStore, since auth.AccountStore uses the flexible go-amino
+// library.
+type AppAccount struct {
+	auth.BaseAccount
 
-//__________________________________________________________
-
-// AccAddress a wrapper around bytes meant to represent an account address
-// When marshaled to a string or json, it uses bech32
-type AccAddress []byte
-
-// create an AccAddress from a hex string
-func AccAddressFromHex(address string) (addr AccAddress, err error) {
-	if len(address) == 0 {
-		return addr, errors.New("decoding bech32 address failed: must provide an address")
-	}
-	bz, err := hex.DecodeString(address)
-	if err != nil {
-		return nil, err
-	}
-	return AccAddress(bz), nil
+	Name string `json:"name"`
 }
 
-// create an AccAddress from a bech32 string
-func AccAddressFromBech32(address string) (addr AccAddress, err error) {
-	bz, err := GetFromBech32(address, Bech32PrefixAccAddr)
-	if err != nil {
-		return nil, err
-	}
-	return AccAddress(bz), nil
+// nolint
+func (acc AppAccount) GetName() string      { return acc.Name }
+func (acc *AppAccount) SetName(name string) { acc.Name = name }
+
+// NewAppAccount returns a reference to a new AppAccount given a name and an
+// auth.BaseAccount.
+func NewAppAccount(name string, baseAcct auth.BaseAccount) *AppAccount {
+	return &AppAccount{BaseAccount: baseAcct, Name: name}
 }
 
-// Marshal needed for protobuf compatibility
-func (bz AccAddress) Marshal() ([]byte, error) {
-	return bz, nil
-}
+// GetAccountDecoder returns the AccountDecoder function for the custom
+// AppAccount.
+func GetAccountDecoder(cdc *wire.Codec) auth.AccountDecoder {
+	return func(accBytes []byte) (auth.Account, error) {
+		if len(accBytes) == 0 {
+			return nil, sdk.ErrTxDecode("accBytes are empty")
+		}
 
-// Unmarshal needed for protobuf compatibility
-func (bz *AccAddress) Unmarshal(data []byte) error {
-	*bz = data
-	return nil
-}
+		acct := new(AppAccount)
+		err := cdc.UnmarshalBinaryBare(accBytes, &acct)
+		if err != nil {
+			panic(err)
+		}
 
-// Marshals to JSON using Bech32
-func (bz AccAddress) MarshalJSON() ([]byte, error) {
-	return json.Marshal(bz.String())
-}
-
-// Unmarshals from JSON assuming Bech32 encoding
-func (bz *AccAddress) UnmarshalJSON(data []byte) error {
-	var s string
-	err := json.Unmarshal(data, &s)
-	if err != nil {
-		return nil
-	}
-
-	bz2, err := AccAddressFromBech32(s)
-	if err != nil {
-		return err
-	}
-	*bz = bz2
-	return nil
-}
-
-// Allow it to fulfill various interfaces in light-client, etc...
-func (bz AccAddress) Bytes() []byte {
-	return bz
-}
-
-func (bz AccAddress) String() string {
-	bech32Addr, err := bech32.ConvertAndEncode(Bech32PrefixAccAddr, bz.Bytes())
-	if err != nil {
-		panic(err)
-	}
-	return bech32Addr
-}
-
-// For Printf / Sprintf, returns bech32 when using %s
-func (bz AccAddress) Format(s fmt.State, verb rune) {
-	switch verb {
-	case 's':
-		s.Write([]byte(fmt.Sprintf("%s", bz.String())))
-	case 'p':
-		s.Write([]byte(fmt.Sprintf("%p", bz)))
-	default:
-		s.Write([]byte(fmt.Sprintf("%X", []byte(bz))))
+		return acct, err
 	}
 }
 
-//__________________________________________________________
-
-// AccAddress a wrapper around bytes meant to represent a validator address
-// (from over ABCI).  When marshaled to a string or json, it uses bech32
-type ValAddress []byte
-
-// create a ValAddress from a hex string
-func ValAddressFromHex(address string) (addr ValAddress, err error) {
-	if len(address) == 0 {
-		return addr, errors.New("decoding bech32 address failed: must provide an address")
-	}
-	bz, err := hex.DecodeString(address)
-	if err != nil {
-		return nil, err
-	}
-	return ValAddress(bz), nil
+// GenesisState reflects the genesis state of the application.
+type GenesisState struct {
+	Accounts []*GenesisAccount `json:"accounts"`
 }
 
-// create a ValAddress from a bech32 string
-func ValAddressFromBech32(address string) (addr ValAddress, err error) {
-	bz, err := GetFromBech32(address, Bech32PrefixValAddr)
-	if err != nil {
-		return nil, err
-	}
-	return ValAddress(bz), nil
+// GenesisAccount reflects a genesis account the application expects in it's
+// genesis state.
+type GenesisAccount struct {
+	Name    string         `json:"name"`
+	Address sdk.AccAddress `json:"address"`
+	Coins   sdk.Coins      `json:"coins"`
 }
 
-// Marshal needed for protobuf compatibility
-func (bz ValAddress) Marshal() ([]byte, error) {
-	return bz, nil
-}
-
-// Unmarshal needed for protobuf compatibility
-func (bz *ValAddress) Unmarshal(data []byte) error {
-	*bz = data
-	return nil
-}
-
-// Marshals to JSON using Bech32
-func (bz ValAddress) MarshalJSON() ([]byte, error) {
-	return json.Marshal(bz.String())
-}
-
-// Unmarshals from JSON assuming Bech32 encoding
-func (bz *ValAddress) UnmarshalJSON(data []byte) error {
-	var s string
-	err := json.Unmarshal(data, &s)
-	if err != nil {
-		return nil
-	}
-
-	bz2, err := ValAddressFromBech32(s)
-	if err != nil {
-		return err
-	}
-	*bz = bz2
-	return nil
-}
-
-// Allow it to fulfill various interfaces in light-client, etc...
-func (bz ValAddress) Bytes() []byte {
-	return bz
-}
-
-func (bz ValAddress) String() string {
-	bech32Addr, err := bech32.ConvertAndEncode(Bech32PrefixValAddr, bz.Bytes())
-	if err != nil {
-		panic(err)
-	}
-	return bech32Addr
-}
-
-// For Printf / Sprintf, returns bech32 when using %s
-func (bz ValAddress) Format(s fmt.State, verb rune) {
-	switch verb {
-	case 's':
-		s.Write([]byte(fmt.Sprintf("%s", bz.String())))
-	case 'p':
-		s.Write([]byte(fmt.Sprintf("%p", bz)))
-	default:
-		s.Write([]byte(fmt.Sprintf("%X", []byte(bz))))
+// NewGenesisAccount returns a reference to a new GenesisAccount given an
+// AppAccount.
+func NewGenesisAccount(aa *AppAccount) *GenesisAccount {
+	return &GenesisAccount{
+		Name:    aa.Name,
+		Address: aa.Address,
+		Coins:   aa.Coins.Sort(),
 	}
 }
 
-// Bech32ifyAccPub takes AccountPubKey and returns the bech32 encoded string
-func Bech32ifyAccPub(pub crypto.PubKey) (string, error) {
-	return bech32.ConvertAndEncode(Bech32PrefixAccPub, pub.Bytes())
-}
-
-// MustBech32ifyAccPub panics on bech32-encoding failure
-func MustBech32ifyAccPub(pub crypto.PubKey) string {
-	enc, err := Bech32ifyAccPub(pub)
-	if err != nil {
-		panic(err)
-	}
-	return enc
-}
-
-// Bech32ifyValPub returns the bech32 encoded string for a validator pubkey
-func Bech32ifyValPub(pub crypto.PubKey) (string, error) {
-	return bech32.ConvertAndEncode(Bech32PrefixValPub, pub.Bytes())
-}
-
-// MustBech32ifyValPub panics on bech32-encoding failure
-func MustBech32ifyValPub(pub crypto.PubKey) string {
-	enc, err := Bech32ifyValPub(pub)
-	if err != nil {
-		panic(err)
-	}
-	return enc
-}
-
-// create a Pubkey from a string
-func GetAccPubKeyBech32(address string) (pk crypto.PubKey, err error) {
-	bz, err := GetFromBech32(address, Bech32PrefixAccPub)
-	if err != nil {
-		return nil, err
-	}
-
-	pk, err = cryptoAmino.PubKeyFromBytes(bz)
-	if err != nil {
-		return nil, err
-	}
-
-	return pk, nil
-}
-
-// create an Pubkey from a string, panics on error
-func MustGetAccPubKeyBech32(address string) (pk crypto.PubKey) {
-	pk, err := GetAccPubKeyBech32(address)
-	if err != nil {
-		panic(err)
-	}
-	return pk
-}
-
-// decode a validator public key into a PubKey
-func GetValPubKeyBech32(pubkey string) (pk crypto.PubKey, err error) {
-	bz, err := GetFromBech32(pubkey, Bech32PrefixValPub)
-	if err != nil {
-		return nil, err
-	}
-
-	pk, err = cryptoAmino.PubKeyFromBytes(bz)
-	if err != nil {
-		return nil, err
-	}
-
-	return pk, nil
-}
-
-// create an Pubkey from a string, panics on error
-func MustGetValPubKeyBech32(address string) (pk crypto.PubKey) {
-	pk, err := GetValPubKeyBech32(address)
-	if err != nil {
-		panic(err)
-	}
-	return pk
-}
-
-// decode a bytestring from a bech32-encoded string
-func GetFromBech32(bech32str, prefix string) ([]byte, error) {
-	if len(bech32str) == 0 {
-		return nil, errors.New("decoding bech32 address failed: must provide an address")
-	}
-	hrp, bz, err := bech32.DecodeAndConvert(bech32str)
-	if err != nil {
-		return nil, err
-	}
-
-	if hrp != prefix {
-		return nil, fmt.Errorf("invalid bech32 prefix. Expected %s, Got %s", prefix, hrp)
-	}
-
-	return bz, nil
+// ToAppAccount converts a GenesisAccount to an AppAccount.
+func (ga *GenesisAccount) ToAppAccount() (acc *AppAccount, err error) {
+	return &AppAccount{
+		Name: ga.Name,
+		BaseAccount: auth.BaseAccount{
+			Address: ga.Address,
+			Coins:   ga.Coins.Sort(),
+		},
+	}, nil
 }
