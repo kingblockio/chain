@@ -46,7 +46,7 @@ type BasecoinApp struct {
 // In addition, all necessary mappers and keepers are created, routes
 // registered, and finally the stores being mounted along with any necessary
 // chain initialization.
-func NewBasecoinApp(logger log.Logger, db dbm.DB, baseAppOptions ...func(*bam.BaseApp)) *BasecoinApp {
+func NewKingBlockApp(logger log.Logger, db dbm.DB, baseAppOptions ...func(*bam.BaseApp)) *BasecoinApp {
 	// create and register app-level codec for TXs and accounts
 	cdc := MakeCodec()
 
