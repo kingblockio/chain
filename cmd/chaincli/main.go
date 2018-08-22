@@ -8,8 +8,8 @@ import (
 	"github.com/cosmos/cosmos-sdk/client/lcd"
 	"github.com/cosmos/cosmos-sdk/client/rpc"
 	"github.com/cosmos/cosmos-sdk/client/tx"
-	"github.com/cosmos/cosmos-sdk/examples/basecoin/app"
-	"github.com/cosmos/cosmos-sdk/examples/basecoin/types"
+	"github.com/kingblockio/kingblock/app"
+	"github.com/kingblockio/kingblock/types"
 	"github.com/cosmos/cosmos-sdk/version"
 	authcmd "github.com/cosmos/cosmos-sdk/x/auth/client/cli"
 	bankcmd "github.com/cosmos/cosmos-sdk/x/bank/client/cli"
@@ -22,8 +22,8 @@ import (
 // rootCmd is the entry point for this binary
 var (
 	rootCmd = &cobra.Command{
-		Use:   "basecli",
-		Short: "Basecoin light-client",
+		Use:   "kingchain",
+		Short: "kingchain light-client",
 	}
 )
 
@@ -75,7 +75,7 @@ func main() {
 	)
 
 	// prepare and add flags
-	executor := cli.PrepareMainCmd(rootCmd, "BC", os.ExpandEnv("$HOME/.basecli"))
+	executor := cli.PrepareMainCmd(rootCmd, "BC", os.ExpandEnv("$HOME/.kingchaincli"))
 	err := executor.Execute()
 	if err != nil {
 		// Note: Handle with #870

@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 
 	bam "github.com/cosmos/cosmos-sdk/baseapp"
-	"github.com/cosmos/cosmos-sdk/examples/basecoin/types"
+	"github.com/kingblockio/kingblock/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/wire"
 	"github.com/cosmos/cosmos-sdk/x/auth"
@@ -18,7 +18,7 @@ import (
 )
 
 const (
-	appName = "BasecoinApp"
+	appName = "KingChainApp"
 )
 
 // BasecoinApp implements an extended ABCI application. It contains a BaseApp,
@@ -103,7 +103,7 @@ func MakeCodec() *wire.Codec {
         auth.RegisterWire(cdc)
 
 	// register custom types
-	cdc.RegisterConcrete(&types.AppAccount{}, "basecoin/Account", nil)
+	cdc.RegisterConcrete(&types.AppAccount{}, "kingchain/Account", nil)
 
 	cdc.Seal()
 
