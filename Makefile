@@ -5,7 +5,6 @@ BUILD_TAGS = netgo ledger
 BUILD_FLAGS = -tags "${BUILD_TAGS}" -ldflags "-X github.com/cosmos/cosmos-sdk/version.GitCommit=${COMMIT_HASH}"
 GCC := $(shell command -v gcc 2> /dev/null)
 LEDGER_ENABLED ?= true
-GOPATH=$(shell env | grep -i 'gopath')
 all: get_tools get_vendor_deps install install_examples test_lint test
 
 ########################################
@@ -79,7 +78,8 @@ get_tools:
 	cd tools && $(MAKE) get_tools
 
 get_vendor_deps:
-	cd $GOPATH/src
+	@echo GOPATH
+	cd $(GOPATH)/src
 	@echo "--> Running dep ensure"
 	@dep ensure -v
 	@echo "--> finished"
