@@ -58,7 +58,6 @@ func main() {
 		client.PostCommands(
 			bankcmd.SendTxCmd(cdc),
 			ibccmd.IBCTransferCmd(cdc),
-			ibccmd.IBCRelayCmd(cdc),
 			stakecmd.GetCmdCreateValidator(cdc),
 			stakecmd.GetCmdEditValidator(cdc),
 			stakecmd.GetCmdDelegate(cdc),
